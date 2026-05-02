@@ -30,28 +30,38 @@ unimet <- read.delim(
 world_map <- map_data("world")
 
 domain_pair_lookup <- unimet %>%
-  distinct(source_domain, target_domain) %>%
-  arrange(source_domain, target_domain) %>%
+  group_by(source_domain, target_domain) %>%
+  summarise(
+    n_realizations = n_distinct(glottocode, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n_realizations), source_domain, target_domain) %>%
   mutate(
     pair_id = paste0("dp_", row_number()),
-    pair_label = paste0(source_domain, " -> ", target_domain)
+    pair_label_base = paste0(source_domain, " -> ", target_domain),
+    pair_label = paste0(pair_label_base, " (", n_realizations, " languages)")
   )
 
 concept_pair_lookup <- unimet %>%
-  distinct(source_translation_in_English, target_translation_in_English) %>%
-  arrange(source_translation_in_English, target_translation_in_English) %>%
+  group_by(source_translation_in_English, target_translation_in_English) %>%
+  summarise(
+    n_realizations = n_distinct(glottocode, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(n_realizations), source_translation_in_English, target_translation_in_English) %>%
   mutate(
     pair_id = paste0("cp_", row_number()),
-    pair_label = paste0(source_translation_in_English, " -> ", target_translation_in_English)
+    pair_label_base = paste0(source_translation_in_English, " -> ", target_translation_in_English),
+    pair_label = paste0(pair_label_base, " (", n_realizations, " languages)")
   )
 
 domain_pair_choices <- setNames(domain_pair_lookup$pair_id, domain_pair_lookup$pair_label)
 concept_pair_choices <- setNames(concept_pair_lookup$pair_id, concept_pair_lookup$pair_label)
 
 point_colors <- c(
-  full = "#1b9e77",
-  partial = "#d95f02",
-  both = "#7570b3",
+  full = "#2E6DB6",
+  partial = "#E69F00",
+  both = "#A52A6C",
   other = "#666666"
 )
 
@@ -71,9 +81,20 @@ ui <- fluidPage(
       .table-row {
         margin-top: 0;
       }
+      .app-note-box {
+        max-width: 900px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #d9d9d9;
+        border-radius: 6px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        font-size: 12px;
+        line-height: 1.35;
+        margin: 16px 0 0 0;
+      }
     "))
   ),
-  titlePanel("Colexification Explorer"),
+  h2("Colexification Explorer", style = "text-align: center; margin-top: 10px;"),
   fluidRow(
     class = "tight-row",
     column(
@@ -138,6 +159,17 @@ ui <- fluidPage(
       12,
       DTOutput("pair_table")
     )
+  ),
+  div(
+    class = "app-note-box",
+    tags$strong("About this app"),
+    tags$br(),
+    "This app is released as part of a research project described by: ",
+    "Khishigsuren, T., Bella, G., Brochhagen, T., Marav, D., Giunchiglia, F., & Batsuren, K. (2022). ",
+    tags$em("Metonymy as a universal cognitive phenomenon: evidence from multilingual lexicons."),
+    " In ",
+    tags$em("Proceedings of the Annual Meeting of the Cognitive Science Society"),
+    " (Vol. 44, No. 44)."
   )
 )
 
@@ -184,7 +216,14 @@ server <- function(input, output, session) {
       selected_domain <- domain_pair_lookup %>%
         filter(pair_id == input$domain_pair) %>%
         slice(1)
-      return(paste0(selected_domain$source_domain, " -> ", selected_domain$target_domain))
+      return(
+        paste0(
+          selected_domain$pair_label_base,
+          " (",
+          selected_domain$n_realizations,
+          " languages)"
+        )
+      )
     }
 
     req(input$concept_pair)
@@ -192,9 +231,10 @@ server <- function(input, output, session) {
       filter(pair_id == input$concept_pair) %>%
       slice(1)
     paste0(
-      selected_concept$source_translation_in_English,
-      " -> ",
-      selected_concept$target_translation_in_English
+      selected_concept$pair_label_base,
+      " (",
+      selected_concept$n_realizations,
+      " languages)"
     )
   })
 
@@ -257,8 +297,8 @@ server <- function(input, output, session) {
         axis.title = element_blank(),
         axis.text = element_blank(),
         legend.position = "bottom",
-        legend.title = element_text(size = 13),
-        legend.text = element_text(size = 13)
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 15)
       )
   })
 
