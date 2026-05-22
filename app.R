@@ -38,7 +38,7 @@ domain_pair_lookup <- unimet %>%
   arrange(desc(n_realizations), source_domain, target_domain) %>%
   mutate(
     pair_id = paste0("dp_", row_number()),
-    pair_label_base = paste0(source_domain, " -> ", target_domain),
+    pair_label_base = paste0(source_domain, " -- ", target_domain),
     pair_label = paste0(pair_label_base, " (", n_realizations, " languages)")
   )
 
@@ -51,12 +51,20 @@ concept_pair_lookup <- unimet %>%
   arrange(desc(n_realizations), source_translation_in_English, target_translation_in_English) %>%
   mutate(
     pair_id = paste0("cp_", row_number()),
-    pair_label_base = paste0(source_translation_in_English, " -> ", target_translation_in_English),
+    pair_label_base = paste0(source_translation_in_English, " -- ", target_translation_in_English),
     pair_label = paste0(pair_label_base, " (", n_realizations, " languages)")
   )
 
-domain_pair_choices <- setNames(domain_pair_lookup$pair_id, domain_pair_lookup$pair_label)
-concept_pair_choices <- setNames(concept_pair_lookup$pair_id, concept_pair_lookup$pair_label)
+n_all_langs <- n_distinct(unimet$glottocode, na.rm = TRUE)
+
+domain_pair_choices <- c(
+  setNames("dp_all", paste0("All pairs (", n_all_langs, " languages)")),
+  setNames(domain_pair_lookup$pair_id, domain_pair_lookup$pair_label)
+)
+concept_pair_choices <- c(
+  setNames("cp_all", paste0("All pairs (", n_all_langs, " languages)")),
+  setNames(concept_pair_lookup$pair_id, concept_pair_lookup$pair_label)
+)
 
 point_colors <- c(
   full = "#2E6DB6",
@@ -169,7 +177,12 @@ ui <- fluidPage(
     tags$em("Metonymy as a universal cognitive phenomenon: evidence from multilingual lexicons."),
     " In ",
     tags$em("Proceedings of the Annual Meeting of the Cognitive Science Society"),
-    " (Vol. 44, No. 44)."
+    " (Vol. 44, No. 44).",
+    tags$br(),
+    tags$br(),
+    "For correspondence, please contact Temuulen Khishigsuren at ",
+    tags$a("kh.temulen@gmail.com", href = "mailto:kh.temulen@gmail.com"),
+    "."
   )
 )
 
@@ -179,6 +192,8 @@ server <- function(input, output, session) {
 
     if (identical(input$pair_type, "domain")) {
       req(input$domain_pair)
+      if (identical(input$domain_pair, "dp_all")) return(unimet)
+
       selected_domain <- domain_pair_lookup %>%
         filter(pair_id == input$domain_pair) %>%
         slice(1)
@@ -195,6 +210,8 @@ server <- function(input, output, session) {
     }
 
     req(input$concept_pair)
+    if (identical(input$concept_pair, "cp_all")) return(unimet)
+
     selected_concept <- concept_pair_lookup %>%
       filter(pair_id == input$concept_pair) %>%
       slice(1)
@@ -213,6 +230,8 @@ server <- function(input, output, session) {
 
     if (identical(input$pair_type, "domain")) {
       req(input$domain_pair)
+      if (identical(input$domain_pair, "dp_all"))
+        return(paste0("All domain pairs (", n_all_langs, " languages)"))
       selected_domain <- domain_pair_lookup %>%
         filter(pair_id == input$domain_pair) %>%
         slice(1)
@@ -227,6 +246,8 @@ server <- function(input, output, session) {
     }
 
     req(input$concept_pair)
+    if (identical(input$concept_pair, "cp_all"))
+      return(paste0("All concept pairs (", n_all_langs, " languages)"))
     selected_concept <- concept_pair_lookup %>%
       filter(pair_id == input$concept_pair) %>%
       slice(1)
